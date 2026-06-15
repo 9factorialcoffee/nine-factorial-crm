@@ -80,6 +80,25 @@ body{font-family:'Noto Sans Thai',sans-serif;background:#f0ebe0;min-height:100vh
 .sinn{font-size:12px;font-weight:600;color:var(--dark);}
 .sinp{font-size:10px;color:var(--muted);}
 .sval{font-size:12px;font-weight:700;color:var(--copper);font-family:'Space Grotesk',sans-serif;}
+/* EDIT CONTROLS */
+.edit-btn{padding:4px 10px;border-radius:6px;border:1px solid var(--copper);background:transparent;color:var(--copper);font-size:11px;font-weight:600;cursor:pointer;font-family:'Noto Sans Thai',sans-serif;transition:all .15s;}
+.edit-btn:hover{background:var(--copper);color:var(--dark);}
+.del-btn{padding:4px 8px;border-radius:6px;border:1px solid #f44336;background:transparent;color:#f44336;font-size:11px;cursor:pointer;transition:all .15s;}
+.del-btn:hover{background:#f44336;color:white;}
+.add-btn{width:100%;padding:11px;border-radius:8px;border:1.5px dashed var(--copper);background:transparent;color:var(--copper);font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans Thai',sans-serif;margin-top:10px;transition:all .15s;}
+.add-btn:hover{background:rgba(200,121,65,.08);}
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;display:flex;align-items:flex-end;}
+.modal-bg.hidden{display:none;}
+.modal{background:white;border-radius:20px 20px 0 0;padding:24px 20px 40px;width:100%;max-height:80vh;overflow-y:auto;}
+.modal-t{font-size:16px;font-weight:700;color:var(--dark);margin-bottom:18px;font-family:'Space Grotesk',sans-serif;}
+.modal-fg{margin-bottom:14px;}
+.modal-lbl{font-size:11px;font-weight:600;color:var(--green2);letter-spacing:.5px;margin-bottom:5px;display:block;}
+.modal-inp{width:100%;padding:11px 13px;border:1.5px solid #d8d0bc;border-radius:8px;font-family:'Noto Sans Thai',sans-serif;font-size:14px;outline:none;}
+.modal-inp:focus{border-color:var(--green2);}
+.modal-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.modal-save{width:100%;padding:14px;background:var(--dark);color:var(--copper);border:none;border-radius:8px;font-family:'Noto Sans Thai',sans-serif;font-size:14px;font-weight:700;cursor:pointer;margin-top:6px;}
+.modal-cancel{width:100%;padding:11px;background:transparent;color:var(--muted);border:1px solid #ddd;border-radius:8px;font-family:'Noto Sans Thai',sans-serif;font-size:13px;cursor:pointer;margin-top:8px;}
 /* SOURCE CHART */
 .src-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
 .src-bar-wrap{flex:1;background:#f0f0e8;border-radius:20px;height:8px;overflow:hidden;}
@@ -196,8 +215,9 @@ body{font-family:'Noto Sans Thai',sans-serif;background:#f0ebe0;min-height:100vh
     <!-- SETTINGS -->
     <div id="t-set" style="display:none">
       <div class="card">
-        <div class="card-t">กฎสะสมแต้ม</div>
+        <div class="card-t">กฎสะสมแต้ม <span id="rules-owner-only" style="display:none"><button class="add-btn" style="width:auto;padding:4px 12px;margin:0" onclick="openAddRule()">+ เพิ่มเมนู</button></span></div>
         <div id="rules-list"><div class="loading-row">กำลังโหลด...</div></div>
+        <button class="add-btn" id="btn-add-rule" style="display:none" onclick="openAddRule()">+ เพิ่มเมนูใหม่</button>
       </div>
       <div class="card">
         <div class="card-t">Tier สมาชิก</div>
@@ -208,14 +228,72 @@ body{font-family:'Noto Sans Thai',sans-serif;background:#f0ebe0;min-height:100vh
           <div style="display:flex;justify-content:space-between;padding:9px 12px;border-radius:8px;background:var(--dark);font-size:12px;font-weight:600;color:var(--copper)">💎 Platinum <span style="color:rgba(200,121,65,.5)">3,001+ pts</span></div>
         </div>
       </div>
+      <div class="card" id="staff-card" style="display:none">
+        <div class="card-t">จัดการพนักงาน / PIN</div>
+        <div id="staff-list"><div class="loading-row">กำลังโหลด...</div></div>
+        <button class="add-btn" onclick="openAddStaff()">+ เพิ่มพนักงาน</button>
+      </div>
     </div>
   </div>
 
+  <!-- BOTTOM NAV -->
   <div class="bnav">
     <div class="bni on" onclick="goTab(null,'t-dash')"><div class="bni-i">📊</div><div class="bni-l">Dashboard</div></div>
     <div class="bni" onclick="goTab(null,'t-mem')"><div class="bni-i">👥</div><div class="bni-l">สมาชิก</div></div>
     <div class="bni" onclick="goTab(null,'t-bcast')"><div class="bni-i">📢</div><div class="bni-l">Broadcast</div></div>
     <div class="bni" onclick="goTab(null,'t-set')"><div class="bni-i">⚙️</div><div class="bni-l">ตั้งค่า</div></div>
+  </div>
+</div>
+
+<!-- MODAL: แก้ไข / เพิ่มเมนู -->
+<div class="modal-bg hidden" id="modal-rule">
+  <div class="modal">
+    <div class="modal-t" id="modal-rule-title">เพิ่มเมนูใหม่</div>
+    <input type="hidden" id="edit-rule-id">
+    <div class="modal-fg">
+      <label class="modal-lbl">ชื่อเมนู</label>
+      <input class="modal-inp" id="edit-rule-name" type="text" placeholder="เช่น Matcha Latte">
+    </div>
+    <div class="modal-row">
+      <div class="modal-fg">
+        <label class="modal-lbl">ราคา (บาท)</label>
+        <input class="modal-inp" id="edit-rule-price" type="number" placeholder="120">
+      </div>
+      <div class="modal-fg">
+        <label class="modal-lbl">แต้มที่ได้รับ</label>
+        <input class="modal-inp" id="edit-rule-points" type="number" placeholder="120">
+      </div>
+    </div>
+    <button class="modal-save" onclick="saveRule()">บันทึก</button>
+    <button class="modal-cancel" onclick="closeModal('modal-rule')">ยกเลิก</button>
+  </div>
+</div>
+
+<!-- MODAL: เพิ่ม/แก้ไข Staff -->
+<div class="modal-bg hidden" id="modal-staff">
+  <div class="modal">
+    <div class="modal-t" id="modal-staff-title">เพิ่มพนักงาน</div>
+    <input type="hidden" id="edit-staff-id">
+    <div class="modal-fg">
+      <label class="modal-lbl">ชื่อพนักงาน</label>
+      <input class="modal-inp" id="edit-staff-name" type="text" placeholder="ชื่อพนักงาน">
+    </div>
+    <div class="modal-row">
+      <div class="modal-fg">
+        <label class="modal-lbl">Role</label>
+        <select class="modal-inp" id="edit-staff-role">
+          <option value="cashier">Cashier</option>
+          <option value="staff">Staff</option>
+          <option value="owner">Owner</option>
+        </select>
+      </div>
+      <div class="modal-fg">
+        <label class="modal-lbl">PIN (4 หลัก)</label>
+        <input class="modal-inp" id="edit-staff-pin" type="number" placeholder="0000" maxlength="4">
+      </div>
+    </div>
+    <button class="modal-save" onclick="saveStaff()">บันทึก</button>
+    <button class="modal-cancel" onclick="closeModal('modal-staff')">ยกเลิก</button>
   </div>
 </div>
 
@@ -246,7 +324,7 @@ async function verifyPin() {
       document.getElementById('adm-staff').textContent = data.staff.name + ' · ' + data.staff.role;
       document.getElementById('pin-screen').style.display = 'none';
       document.getElementById('main-app').style.display = 'flex';
-      loadDashboard(); loadMembers(); loadRules();
+      loadDashboard(); loadMembers(); loadRules(); loadStaff();
     } else {
       document.getElementById('pin-err').textContent = 'PIN ไม่ถูกต้อง';
       pin = ''; updateDots();
@@ -340,12 +418,133 @@ async function loadRules() {
     const res = await fetch(API_BASE + '/rules');
     const data = await res.json();
     const icons = {'Signature Latte':'☕','Cold Brew Original':'🧊','Butter Croissant':'🥐','Espresso':'☕','House Cake':'🍰'};
+    const isOwner = staffInfo && staffInfo.role === 'owner';
+    // แสดงปุ่มเพิ่มเมนูเฉพาะ Owner
+    if (isOwner) document.getElementById('btn-add-rule').style.display = 'block';
     document.getElementById('rules-list').innerHTML = (data.rules||[]).map(r =>
-      '<div class="sitem"><div class="sico">' + (icons[r.item_name]||'🍽️') + '</div>' +
+      '<div class="sitem">' +
+      '<div class="sico">' + (icons[r.item_name]||'🍽️') + '</div>' +
       '<div class="sinf"><div class="sinn">' + r.item_name + '</div><div class="sinp">' + r.price_thb + ' บาท</div></div>' +
-      '<div class="sval">' + r.points + ' pts</div></div>'
+      '<div style="display:flex;align-items:center;gap:6px">' +
+      '<div class="sval">' + r.points + ' pts</div>' +
+      (isOwner ? '<button class="edit-btn" onclick="openEditRule(' + r.id + ',\'' + r.item_name + '\',' + r.price_thb + ',' + r.points + ')">แก้ไข</button>' : '') +
+      '</div></div>'
     ).join('');
   } catch(e) {}
+}
+
+async function loadStaff() {
+  if (!staffInfo || staffInfo.role !== 'owner') return;
+  document.getElementById('staff-card').style.display = 'block';
+  try {
+    const res = await fetch(API_BASE + '/staff/list');
+    const data = await res.json();
+    document.getElementById('staff-list').innerHTML = (data.staff||[]).map(s =>
+      '<div class="sitem">' +
+      '<div class="sico">' + (s.role==='owner'?'👑':s.role==='staff'?'👤':'💳') + '</div>' +
+      '<div class="sinf"><div class="sinn">' + s.name + '</div><div class="sinp">' + s.role + ' · PIN: ****</div></div>' +
+      '<div style="display:flex;gap:6px">' +
+      '<button class="edit-btn" onclick="openEditStaff(' + s.id + ',\'' + s.name + '\',\'' + s.role + '\')">แก้ไข</button>' +
+      (s.role!=='owner' ? '<button class="del-btn" onclick="delStaff(' + s.id + ',\'' + s.name + '\')">ลบ</button>' : '') +
+      '</div></div>'
+    ).join('');
+  } catch(e) {
+    document.getElementById('staff-list').innerHTML = '<div class="loading-row">ไม่สามารถโหลดได้</div>';
+  }
+}
+
+// ── MODAL HELPERS ────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+// ── RULE MODAL ───────────────────────────────────────────
+function openAddRule() {
+  document.getElementById('modal-rule-title').textContent = 'เพิ่มเมนูใหม่';
+  document.getElementById('edit-rule-id').value = '';
+  document.getElementById('edit-rule-name').value = '';
+  document.getElementById('edit-rule-price').value = '';
+  document.getElementById('edit-rule-points').value = '';
+  openModal('modal-rule');
+}
+function openEditRule(id, name, price, points) {
+  document.getElementById('modal-rule-title').textContent = 'แก้ไขเมนู';
+  document.getElementById('edit-rule-id').value = id;
+  document.getElementById('edit-rule-name').value = name;
+  document.getElementById('edit-rule-price').value = price;
+  document.getElementById('edit-rule-points').value = points;
+  openModal('modal-rule');
+}
+async function saveRule() {
+  const id     = document.getElementById('edit-rule-id').value;
+  const name   = document.getElementById('edit-rule-name').value.trim();
+  const price  = parseFloat(document.getElementById('edit-rule-price').value);
+  const points = parseInt(document.getElementById('edit-rule-points').value);
+  if (!name || !price || !points) { showToast('กรุณากรอกข้อมูลให้ครบ'); return; }
+  try {
+    const url    = id ? API_BASE + '/rules/' + id : API_BASE + '/rules';
+    const method = id ? 'PUT' : 'POST';
+    const res = await fetch(url, {
+      method, headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ item_name: name, price_thb: price, points }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      closeModal('modal-rule');
+      showToast(id ? '✓ แก้ไขเมนูสำเร็จ' : '✓ เพิ่มเมนูสำเร็จ');
+      loadRules();
+    } else { showToast(data.error || 'เกิดข้อผิดพลาด'); }
+  } catch(e) { showToast('ไม่สามารถเชื่อมต่อได้'); }
+}
+
+// ── STAFF MODAL ──────────────────────────────────────────
+function openAddStaff() {
+  document.getElementById('modal-staff-title').textContent = 'เพิ่มพนักงาน';
+  document.getElementById('edit-staff-id').value = '';
+  document.getElementById('edit-staff-name').value = '';
+  document.getElementById('edit-staff-pin').value = '';
+  document.getElementById('edit-staff-role').value = 'cashier';
+  openModal('modal-staff');
+}
+function openEditStaff(id, name, role) {
+  document.getElementById('modal-staff-title').textContent = 'แก้ไขพนักงาน / PIN';
+  document.getElementById('edit-staff-id').value = id;
+  document.getElementById('edit-staff-name').value = name;
+  document.getElementById('edit-staff-role').value = role;
+  document.getElementById('edit-staff-pin').value = '';
+  openModal('modal-staff');
+}
+async function saveStaff() {
+  const id   = document.getElementById('edit-staff-id').value;
+  const name = document.getElementById('edit-staff-name').value.trim();
+  const role = document.getElementById('edit-staff-role').value;
+  const pin  = document.getElementById('edit-staff-pin').value.trim();
+  if (!name) { showToast('กรุณากรอกชื่อ'); return; }
+  if (!id && !pin) { showToast('กรุณากรอก PIN'); return; }
+  if (pin && (pin.length < 4 || isNaN(pin))) { showToast('PIN ต้องเป็นตัวเลข 4 หลัก'); return; }
+  try {
+    const url    = id ? API_BASE + '/staff/' + id : API_BASE + '/staff';
+    const method = id ? 'PUT' : 'POST';
+    const body   = { name, role };
+    if (pin) body.pin = pin;
+    const res = await fetch(url, {
+      method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      closeModal('modal-staff');
+      showToast(id ? '✓ แก้ไขสำเร็จ' : '✓ เพิ่มพนักงานสำเร็จ');
+      loadStaff();
+    } else { showToast(data.error || 'เกิดข้อผิดพลาด'); }
+  } catch(e) { showToast('ไม่สามารถเชื่อมต่อได้'); }
+}
+async function delStaff(id, name) {
+  if (!confirm('ลบ "' + name + '" ออกจากระบบ?')) return;
+  try {
+    const res = await fetch(API_BASE + '/staff/' + id, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.ok) { showToast('✓ ลบสำเร็จ'); loadStaff(); }
+    else showToast(data.error || 'เกิดข้อผิดพลาด');
+  } catch(e) { showToast('ไม่สามารถเชื่อมต่อได้'); }
 }
 
 // ── BROADCAST ────────────────────────────────────────────
