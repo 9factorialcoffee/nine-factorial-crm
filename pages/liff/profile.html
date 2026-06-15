@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=0">
+<title>แต้มสะสม · 9! COFFEE</title>
+<script src="https://static.line-scdn.net/liff/edge/versions/2.22.3/sdk.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap');
+:root{--dark:#1e2820;--copper:#c87941;--copper2:#e09a5a;--cream:#f0ead8;--muted:#8a9a8c;--red:#c0392b;--green2:#3a5040;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Noto Sans Thai',sans-serif;background:var(--dark);min-height:100vh;}
+.head{padding:46px 22px 70px;position:relative;overflow:hidden;}
+.head::after{content:'9!';position:absolute;right:-12px;bottom:-20px;font-family:'Space Grotesk',sans-serif;font-size:110px;font-weight:700;color:rgba(200,121,65,.05);line-height:1;}
+.h-top{display:flex;align-items:center;gap:14px;margin-bottom:18px;}
+.av{width:52px;height:52px;border-radius:50%;background:var(--copper);color:var(--dark);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;font-family:'Space Grotesk',sans-serif;border:3px solid rgba(200,121,65,.25);overflow:hidden;flex-shrink:0;}
+.av img{width:100%;height:100%;object-fit:cover;}
+.name{font-size:16px;font-weight:700;color:var(--cream);}
+.since{font-size:11px;color:var(--muted);margin-top:2px;}
+.tier-pill{display:inline-flex;align-items:center;gap:5px;background:rgba(200,121,65,.12);border:1px solid rgba(200,121,65,.3);color:var(--copper2);padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.5px;margin-top:6px;}
+.pts-box{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:18px 20px;display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1;}
+.pl{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
+.pts-num{font-family:'Space Grotesk',sans-serif;font-size:44px;font-weight:700;color:var(--copper);line-height:1;margin:4px 0;}
+.pts-sub{font-size:10px;color:#4a5e4c;}
+.pts-ring{width:68px;height:68px;position:relative;flex-shrink:0;}
+.pts-ring svg{transform:rotate(-90deg);}
+.rg-bg{fill:none;stroke:rgba(255,255,255,.06);stroke-width:5;}
+.rg-fill{fill:none;stroke:var(--copper);stroke-width:5;stroke-linecap:round;stroke-dasharray:188;transition:stroke-dashoffset 1s;}
+.rt{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:10px;color:var(--copper);text-align:center;line-height:1.3;font-weight:600;}
+.cards{padding:14px;margin-top:-28px;display:flex;flex-direction:column;gap:10px;}
+.card{background:var(--cream);border-radius:12px;padding:16px;box-shadow:0 2px 12px rgba(0,0,0,.08);}
+.card-t{font-size:11px;font-weight:700;color:#2d3d2e;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+.card-t::before{content:'';width:3px;height:12px;background:var(--copper);border-radius:2px;}
+.rwgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.rwcard{background:white;border-radius:10px;padding:12px;text-align:center;border:1.5px solid transparent;transition:border-color .2s;cursor:pointer;}
+.rwcard:hover{border-color:var(--copper);}
+.rwcard.no-pts{opacity:.4;cursor:not-allowed;}
+.rwi{font-size:26px;margin-bottom:5px;}
+.rwn{font-size:11px;font-weight:600;color:#2d3d2e;}
+.rwp{font-size:10px;color:var(--muted);margin-top:2px;}
+.rwbtn{display:inline-block;margin-top:7px;padding:3px 10px;background:var(--dark);color:var(--copper);border-radius:20px;font-size:10px;font-weight:600;cursor:pointer;}
+.hitem{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(0,0,0,.06);}
+.hitem:last-child{border-bottom:none;}
+.hic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.hic.e{background:#fff3e0;}
+.hic.r{background:#fce4ec;}
+.hd{flex:1;}
+.hdesc{font-size:12px;font-weight:600;color:#1e2820;}
+.hdate{font-size:10px;color:var(--muted);margin-top:1px;}
+.hpt{font-size:13px;font-weight:700;}
+.hpt.e{color:#e65100;}
+.hpt.r{color:var(--red);}
+.empty{text-align:center;padding:20px;color:var(--muted);font-size:12px;}
+.loading-screen{position:fixed;inset:0;background:var(--dark);display:flex;align-items:center;justify-content:center;z-index:99;}
+.spin{width:36px;height:36px;border:3px solid rgba(200,121,65,.2);border-top-color:var(--copper);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.notmem{display:none;flex-direction:column;align-items:center;padding:60px 24px;text-align:center;}
+.notmem .icon{font-size:48px;margin-bottom:16px;}
+.notmem .t{font-size:17px;font-weight:700;color:var(--cream);font-family:'Space Grotesk',sans-serif;}
+.notmem .s{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.6;}
+.notmem .btn{display:inline-block;margin-top:20px;padding:12px 24px;background:var(--copper);color:var(--dark);border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;text-decoration:none;}
+</style>
+</head>
+<body>
+
+<div class="loading-screen" id="loading"><div class="spin"></div></div>
+
+<div id="main" style="display:none">
+  <div class="head">
+    <div class="h-top">
+      <div class="av" id="avatar">ส</div>
+      <div>
+        <div class="name" id="mem-name">-</div>
+        <div class="since" id="mem-since">-</div>
+        <div class="tier-pill" id="mem-tier">-</div>
+      </div>
+    </div>
+    <div class="pts-box">
+      <div>
+        <div class="pl">POINTS</div>
+        <div class="pts-num" id="pts-num">0</div>
+        <div class="pts-sub" id="pts-sub">-</div>
+      </div>
+      <div class="pts-ring">
+        <svg width="68" height="68" viewBox="0 0 68 68">
+          <circle class="rg-bg" cx="34" cy="34" r="28"/>
+          <circle class="rg-fill" id="ring-fill" cx="34" cy="34" r="28" stroke-dashoffset="188"/>
+        </svg>
+        <div class="rt" id="ring-txt">0%</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-t">แลกของรางวัล</div>
+      <div class="rwgrid" id="rewards-grid">
+        <div class="empty">กำลังโหลด...</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-t">ประวัติแต้ม</div>
+      <div id="history-list"><div class="empty">ยังไม่มีรายการ</div></div>
+    </div>
+  </div>
+</div>
+
+<div id="notmem" class="notmem">
+  <div class="icon">☕</div>
+  <div class="t">ยังไม่ได้สมัครสมาชิก</div>
+  <div class="s">สมัครสมาชิกเพื่อเริ่มสะสมแต้ม<br>และรับสิทธิพิเศษสำหรับสมาชิก</div>
+  <a class="btn" href="../liff/register.html">สมัครสมาชิกเลย</a>
+</div>
+
+<script>
+const LIFF_ID  = 'YOUR_LIFF_ID';
+const API_BASE = 'YOUR_WORKER_URL';
+const TIER_ORDER = {Bronze:1,Silver:2,Gold:3,Platinum:4};
+const TIER_LIMITS = {Bronze:500,Silver:1500,Gold:3000,Platinum:99999};
+const TIER_NEXT   = {Bronze:'Silver',Silver:'Gold',Gold:'Platinum',Platinum:null};
+
+let memberData = null;
+
+async function init() {
+  try {
+    await liff.init({ liffId: LIFF_ID });
+    if (!liff.isLoggedIn()) { liff.login(); return; }
+    const profile = await liff.getProfile();
+    const res = await fetch(API_BASE + '/members/me?line_user_id=' + profile.userId);
+    const data = await res.json();
+    if (!data.registered) {
+      document.getElementById('notmem').style.display = 'flex';
+      return;
+    }
+    memberData = data.member;
+    renderProfile(data.member, data.transactions);
+    await renderRewards(data.member.points);
+    document.getElementById('main').style.display = 'block';
+  } catch(e) {
+    // dev fallback
+    memberData = {id:1,full_name:'สมชาย ใจดี',tier:'Gold',points:2340,created_at:'2025-06-01'};
+    renderProfile(memberData, []);
+    await renderRewards(2340);
+    document.getElementById('main').style.display = 'block';
+  } finally {
+    document.getElementById('loading').style.display = 'none';
+  }
+}
+
+function renderProfile(m, txs) {
+  document.getElementById('mem-name').textContent = m.full_name;
+  document.getElementById('mem-since').textContent = 'สมาชิกตั้งแต่ ' + m.created_at.substring(0,7);
+  document.getElementById('mem-tier').textContent = m.tier + ' MEMBER';
+  document.getElementById('pts-num').textContent = m.points.toLocaleString();
+  // ring
+  const limit = TIER_LIMITS[m.tier] || 500;
+  const prev  = {Bronze:0,Silver:500,Gold:1500,Platinum:3000}[m.tier] || 0;
+  const pct = Math.min(100, Math.round((m.points - prev) / (limit - prev) * 100));
+  const dashoffset = 188 - (188 * pct / 100);
+  document.getElementById('ring-fill').setAttribute('stroke-dashoffset', dashoffset);
+  document.getElementById('ring-txt').textContent = pct + '%\n' + m.tier;
+  const next = TIER_NEXT[m.tier];
+  document.getElementById('pts-sub').textContent = next
+    ? 'อีก ' + (limit - m.points).toLocaleString() + ' แต้ม → ' + next
+    : 'สูงสุดแล้ว! 🎉';
+  // history
+  if (txs && txs.length) {
+    const ul = txs.slice(0,6).map(t => {
+      const cls = t.type === 'earn' ? 'e' : 'r';
+      const icon = t.type === 'earn' ? '☕' : '🎁';
+      const sign = t.type === 'earn' ? '+' : '';
+      return '<div class="hitem"><div class="hic ' + cls + '">' + icon + '</div>' +
+        '<div class="hd"><div class="hdesc">' + (t.note||'รายการ') + '</div>' +
+        '<div class="hdate">' + t.created_at.substring(0,16) + '</div></div>' +
+        '<div class="hpt ' + cls + '">' + sign + t.points + '</div></div>';
+    }).join('');
+    document.getElementById('history-list').innerHTML = ul;
+  }
+}
+
+async function renderRewards(pts) {
+  try {
+    const res = await fetch(API_BASE + '/rewards');
+    const data = await res.json();
+    if (!data.rewards) return;
+    const icons = ['☕','🛍️','🎂','🫘','🎁'];
+    const html = data.rewards.map((r,i) => {
+      const enough = pts >= r.points_cost;
+      return '<div class="rwcard' + (enough?'':' no-pts') + '">' +
+        '<div class="rwi">' + (icons[i%icons.length]) + '</div>' +
+        '<div class="rwn">' + r.name + '</div>' +
+        '<div class="rwp">' + r.points_cost + ' แต้ม</div>' +
+        (enough ? '<div class="rwbtn" onclick="redeem(' + r.id + ',&quot;' + r.name + '&quot;,' + r.points_cost + ')">แลกเลย</div>' : '') +
+        '</div>';
+    }).join('');
+    document.getElementById('rewards-grid').innerHTML = html;
+  } catch(e) {}
+}
+
+async function redeem(rewardId, name, cost) {
+  if (!memberData || memberData.points < cost) return;
+  if (!confirm('แลก "' + name + '" ใช้ ' + cost + ' แต้ม ยืนยัน?')) return;
+  try {
+    const res = await fetch(API_BASE + '/points/redeem', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ member_id: memberData.id, reward_id: rewardId }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      alert('✅ แลกสำเร็จ! แต้มคงเหลือ: ' + data.remaining_points);
+      memberData.points = data.remaining_points;
+      document.getElementById('pts-num').textContent = data.remaining_points.toLocaleString();
+      await renderRewards(data.remaining_points);
+    } else {
+      alert(data.error);
+    }
+  } catch(e) { alert('เกิดข้อผิดพลาด'); }
+}
+
+init();
+</script>
+</body>
+</html>
