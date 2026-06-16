@@ -60,6 +60,7 @@ body{font-family:'Noto Sans Thai',sans-serif;background:var(--dark);min-height:1
 .notmem .s{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.6;}
 .notmem .btn{display:inline-block;margin-top:20px;padding:12px 24px;background:var(--copper);color:var(--dark);border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;text-decoration:none;}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -92,6 +93,12 @@ body{font-family:'Noto Sans Thai',sans-serif;background:var(--dark);min-height:1
   </div>
 
   <div class="cards">
+    <div class="card" style="text-align:center">
+      <div class="card-t" style="justify-content:center">QR สะสมแต้ม</div>
+      <div style="font-size:11px;color:#8a9a8c;margin-bottom:12px">แสดง QR นี้ให้พนักงานสแกนเพื่อสะสมแต้ม</div>
+      <div id="qrcode" style="display:inline-block;background:white;padding:12px;border-radius:12px"></div>
+      <div style="font-size:10px;color:#8a9a8c;margin-top:10px" id="qr-name">-</div>
+    </div>
     <div class="card">
       <div class="card-t">แลกของรางวัล</div>
       <div class="rwgrid" id="rewards-grid">
@@ -113,8 +120,8 @@ body{font-family:'Noto Sans Thai',sans-serif;background:var(--dark);min-height:1
 </div>
 
 <script>
-const LIFF_ID  = '2010401192-yzsSA1GY';
-const API_BASE = 'https://nine-factorial-crm.9factorialcoffee.workers.dev';
+const LIFF_ID  = 'YOUR_LIFF_ID';
+const API_BASE = 'YOUR_WORKER_URL';
 const TIER_ORDER = {Bronze:1,Silver:2,Gold:3,Platinum:4};
 const TIER_LIMITS = {Bronze:500,Silver:1500,Gold:3000,Platinum:99999};
 const TIER_NEXT   = {Bronze:'Silver',Silver:'Gold',Gold:'Platinum',Platinum:null};
@@ -138,7 +145,7 @@ async function init() {
     document.getElementById('main').style.display = 'block';
   } catch(e) {
     // dev fallback
-    memberData = {id:1,full_name:'สมชาย ใจดี',tier:'Gold',points:2340,created_at:'2025-06-01'};
+    memberData = {id:1,full_name:'สมชาย ใจดี',tier:'Gold',points:2340,created_at:'2025-06-01',line_user_id:'Udemo123456',phone:'081-234-5678'};
     renderProfile(memberData, []);
     await renderRewards(2340);
     document.getElementById('main').style.display = 'block';
@@ -152,6 +159,15 @@ function renderProfile(m, txs) {
   document.getElementById('mem-since').textContent = 'สมาชิกตั้งแต่ ' + m.created_at.substring(0,7);
   document.getElementById('mem-tier').textContent = m.tier + ' MEMBER';
   document.getElementById('pts-num').textContent = m.points.toLocaleString();
+  // QR code (ใช้ line_user_id เป็นข้อมูล)
+  try {
+    const qrEl = document.getElementById('qrcode');
+    if (qrEl && m.line_user_id && typeof QRCode !== 'undefined') {
+      qrEl.innerHTML = '';
+      new QRCode(qrEl, { text: m.line_user_id, width: 160, height: 160, colorDark: '#1e2820', colorLight: '#ffffff' });
+      document.getElementById('qr-name').textContent = m.full_name + ' · ' + m.phone;
+    }
+  } catch(e) {}
   // ring
   const limit = TIER_LIMITS[m.tier] || 500;
   const prev  = {Bronze:0,Silver:500,Gold:1500,Platinum:3000}[m.tier] || 0;
