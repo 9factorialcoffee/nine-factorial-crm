@@ -162,7 +162,25 @@ body{font-family:'Noto Sans Thai',sans-serif;background:var(--bg);min-height:100
 .toast.show{opacity:1;}
 .spin{display:inline-block;width:16px;height:16px;border:2px solid rgba(200,121,65,.3);border-top-color:var(--copper);border-radius:50%;animation:spin .8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
+
+/* ─── EARN METHODS ─── */
+.method-tabs{display:flex;gap:8px;margin-bottom:14px;}
+.mtab{flex:1;padding:12px 8px;border-radius:10px;border:1.5px solid #d8d0bc;background:white;font-family:'Noto Sans Thai',sans-serif;font-size:12px;font-weight:600;cursor:pointer;color:var(--muted);text-align:center;transition:all .2s;}
+.mtab.on{background:var(--dark);color:var(--copper);border-color:var(--dark);}
+.mtab .mt-ico{font-size:22px;display:block;margin-bottom:4px;}
+/* big numpad */
+.phone-disp{background:white;border:2px solid #d8d0bc;border-radius:12px;padding:18px;text-align:center;font-size:28px;font-weight:700;font-family:'Space Grotesk',sans-serif;color:var(--dark);letter-spacing:2px;margin-bottom:12px;min-height:64px;}
+.phone-disp.empty{color:#ccc;}
+.big-numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.bnp{height:64px;border-radius:12px;background:white;border:1.5px solid #d8d0bc;color:var(--dark);font-size:24px;font-weight:700;font-family:'Space Grotesk',sans-serif;cursor:pointer;transition:all .1s;}
+.bnp:active{background:var(--cream2);transform:scale(.96);}
+.bnp.act{background:var(--dark);color:var(--copper);border-color:var(--dark);}
+.bnp.del{font-size:18px;}
+/* qr scanner */
+#qr-reader{border-radius:12px;overflow:hidden;margin-bottom:10px;}
+#qr-reader video{border-radius:12px;}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 </head>
 <body>
 
@@ -256,10 +274,11 @@ body{font-family:'Noto Sans Thai',sans-serif;background:var(--bg);min-height:100
 <div class="toast" id="toast"></div>
 
 <script>
-const API_BASE = 'https://nine-factorial-crm.9factorialcoffee.workers.dev';
+const API_BASE = 'YOUR_WORKER_URL';
 
 // ═══ STATE ═══
 let pin='', staffInfo=null, currentMember=null, orderQtys={}, rules=[], allMembers=[];
+let qrScanner=null;
 let weeklyChart=null, histType='all';
 
 // เมนูตาม role
@@ -307,6 +326,7 @@ function buildTabs(){
   goTab(menu[0].id, document.querySelector('.tab'));
 }
 function goTab(id, el){
+  if(qrScanner){ try{qrScanner.stop();}catch(e){} qrScanner=null; }
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
   if(el) el.classList.add('on');
   else { const t=document.querySelector('.tab[data-tab="'+id+'"]'); if(t)t.classList.add('on'); }
@@ -326,17 +346,63 @@ function render(id){
 }
 
 // ═══ EARN ═══
+let earnMethod='numpad', phoneBuf='';
 function renderEarn(b){
   b.innerHTML=
-    '<div class="sec-t">ค้นหาสมาชิก</div>'+
-    '<div class="search-row"><input class="si" id="search-input" type="tel" placeholder="เบอร์โทร / QR Code" inputmode="numeric"><button class="sbtn" onclick="searchMember()">🔍</button></div>'+
+    '<div class="method-tabs">'+
+      '<div class="mtab on" id="m-numpad" onclick="setMethod(\'numpad\')"><span class="mt-ico">🔢</span>กดเบอร์</div>'+
+      '<div class="mtab" id="m-qr" onclick="setMethod(\'qr\')"><span class="mt-ico">📷</span>สแกน QR</div>'+
+      '<div class="mtab" id="m-type" onclick="setMethod(\'type\')"><span class="mt-ico">⌨️</span>พิมพ์เร็ว</div>'+
+    '</div>'+
+    '<div id="method-area"></div>'+
     '<div id="earn-member"></div>';
-  document.getElementById('search-input').addEventListener('keydown',e=>{if(e.key==='Enter')searchMember();});
+  setMethod('numpad');
   if(currentMember) showEarnMember();
 }
-async function searchMember(){
-  const q=document.getElementById('search-input').value.trim();
-  if(!q)return;
+function setMethod(m){
+  earnMethod=m; phoneBuf='';
+  ['numpad','qr','type'].forEach(x=>document.getElementById('m-'+x).classList.toggle('on',x===m));
+  if(qrScanner){ try{qrScanner.stop();}catch(e){} qrScanner=null; }
+  const area=document.getElementById('method-area');
+  if(m==='numpad'){
+    area.innerHTML=
+      '<div class="phone-disp empty" id="phone-disp">กรอกเบอร์โทร</div>'+
+      '<div class="big-numpad">'+
+      [1,2,3,4,5,6,7,8,9].map(n=>'<button class="bnp" onclick="npKey(\''+n+'\')">'+n+'</button>').join('')+
+      '<button class="bnp del" onclick="npDel()">⌫</button>'+
+      '<button class="bnp" onclick="npKey(\'0\')">0</button>'+
+      '<button class="bnp act" onclick="npSearch()">🔍</button>'+
+      '</div>';
+  } else if(m==='qr'){
+    area.innerHTML='<div id="qr-reader" style="width:100%"></div><div style="text-align:center;font-size:11px;color:#8a9a8c">ให้ลูกค้าเปิด QR จากเมนู "ดูแต้มของฉัน" ใน LINE</div>';
+    startQrScan();
+  } else {
+    area.innerHTML='<div class="search-row"><input class="si" id="type-input" type="tel" placeholder="เบอร์โทรลูกค้า" inputmode="numeric"><button class="sbtn" onclick="typeSearch()">🔍</button></div>';
+    document.getElementById('type-input').addEventListener('keydown',e=>{if(e.key==='Enter')typeSearch();});
+  }
+}
+// numpad
+function npKey(k){ if(phoneBuf.length>=10)return; phoneBuf+=k; updPhone(); }
+function npDel(){ phoneBuf=phoneBuf.slice(0,-1); updPhone(); }
+function updPhone(){
+  const d=document.getElementById('phone-disp');
+  if(!phoneBuf){ d.textContent='กรอกเบอร์โทร'; d.classList.add('empty'); }
+  else { let f=phoneBuf; if(f.length>3&&f.length<=6)f=f.slice(0,3)+'-'+f.slice(3); else if(f.length>6)f=f.slice(0,3)+'-'+f.slice(3,6)+'-'+f.slice(6); d.textContent=f; d.classList.remove('empty'); }
+}
+function npSearch(){ if(phoneBuf.length<9){showToast('กรอกเบอร์ให้ครบ');return;} doSearch(phoneBuf); }
+// qr
+function startQrScan(){
+  if(typeof Html5Qrcode==='undefined'){ showToast('QR scanner โหลดไม่ได้'); return; }
+  qrScanner=new Html5Qrcode('qr-reader');
+  qrScanner.start({facingMode:'environment'},{fps:10,qrbox:200},(txt)=>{
+    if(qrScanner){ try{qrScanner.stop();}catch(e){} qrScanner=null; }
+    doSearch(txt);
+  },()=>{}).catch(()=>showToast('เปิดกล้องไม่ได้ ตรวจสอบสิทธิ์'));
+}
+// type
+function typeSearch(){ const q=document.getElementById('type-input').value.trim(); if(q)doSearch(q); }
+// shared
+async function doSearch(q){
   try{
     const res=await fetch(API_BASE+'/members/search?q='+encodeURIComponent(q));
     const data=await res.json();
