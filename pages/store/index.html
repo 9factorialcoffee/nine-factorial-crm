@@ -168,6 +168,14 @@ body{font-family:'Noto Sans Thai',sans-serif;background:var(--bg);min-height:100
 .amt-prefix{font-size:28px;font-weight:700;color:var(--copper);font-family:'Space Grotesk',sans-serif;margin-right:8px;}
 .amt-input{flex:1;border:none;outline:none;font-size:32px;font-weight:700;font-family:'Space Grotesk',sans-serif;color:var(--dark);background:transparent;width:100%;}
 .amt-hint{text-align:center;font-size:12px;color:var(--muted);margin-bottom:14px;}
+.lasttx-box{background:#fff8e1;border:1px solid #ffe082;border-radius:10px;padding:12px;margin-top:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.lasttx-info{font-size:12px;color:#6d4c41;line-height:1.4;}
+.next-cust-btn{background:rgba(200,121,65,.12);border:1px solid var(--copper);color:var(--copper);font-size:11px;font-weight:600;padding:6px 12px;border-radius:16px;cursor:pointer;font-family:'Noto Sans Thai',sans-serif;white-space:nowrap;flex-shrink:0;}
+.earn-done{background:#e8f5e9;border:1px solid #a5d6a7;border-radius:12px;padding:20px;text-align:center;margin:14px 0;}
+.done-ic{width:52px;height:52px;border-radius:50%;background:#4caf50;color:white;font-size:28px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;}
+.done-txt{font-size:14px;color:#1b5e20;line-height:1.6;}
+.done-txt b{font-size:18px;color:#c87941;font-family:'Space Grotesk',sans-serif;}
+.btn-next{width:100%;padding:16px;background:var(--dark);color:var(--copper);border:none;border-radius:10px;font-family:'Noto Sans Thai',sans-serif;font-size:15px;font-weight:700;cursor:pointer;margin-top:6px;}
 .method-tabs{display:flex;gap:8px;margin-bottom:14px;}
 .mtab{flex:1;padding:12px 8px;border-radius:10px;border:1.5px solid #d8d0bc;background:white;font-family:'Noto Sans Thai',sans-serif;font-size:12px;font-weight:600;cursor:pointer;color:var(--muted);text-align:center;transition:all .2s;}
 .mtab.on{background:var(--dark);color:var(--copper);border-color:var(--dark);}
@@ -283,6 +291,7 @@ const API_BASE = 'https://nine-factorial-crm.9factorialcoffee.workers.dev';
 // ═══ STATE ═══
 let pin='', staffInfo=null, currentMember=null, orderQtys={}, rules=[], allMembers=[];
 let qrScanner=null;
+let lastTx=null, editCountdown=null, justEarned=false;
 let weeklyChart=null, histType='all';
 
 // เมนูตาม role
@@ -412,7 +421,7 @@ async function doSearch(q){
   try{
     const res=await fetch(API_BASE+'/members/search?q='+encodeURIComponent(q));
     const data=await res.json();
-    if(data.results&&data.results.length){ currentMember=data.results[0]; orderQtys={}; await loadRules(); showEarnMember(); showToast('✓ พบ: '+currentMember.full_name); }
+    if(data.results&&data.results.length){ currentMember=data.results[0]; orderQtys={}; lastTx=null; justEarned=false; if(editCountdown)clearInterval(editCountdown); editCountdown=null; await loadRules(); showEarnMember(); showToast('✓ พบ: '+currentMember.full_name); }
     else showToast('ไม่พบสมาชิก');
   }catch(e){ showToast('เชื่อมต่อไม่ได้'); }
 }
@@ -420,33 +429,90 @@ async function loadRules(){ try{ const r=await fetch(API_BASE+'/rules'); rules=(
 function iconFor(n){ return {'Signature Latte':'☕','Cold Brew Original':'🧊','Butter Croissant':'🥐','Espresso':'☕','House Cake':'🍰'}[n]||'🍽️'; }
 function showEarnMember(){
   const m=currentMember;
-  let html='<div class="mfound"><div class="mf-av">'+m.full_name.charAt(0)+'</div><div><div class="mfn">'+m.full_name+'</div><div class="mfp">'+m.phone+' · '+m.tier+'</div><div class="mfpts">★ '+m.points.toLocaleString()+' แต้มสะสม</div></div></div>';
-  html+='<div class="sec-t">กรอกยอดเงินรวมในบิล</div>'+
-    '<div class="amount-box"><span class="amt-prefix">฿</span><input class="amt-input" id="amt-input" type="number" inputmode="numeric" placeholder="0" oninput="calcPts()"></div>'+
-    '<div class="amt-hint" id="amt-hint">ทุก 30 บาท = 1 แต้ม</div>'+
-    '<button class="btn-confirm" id="confirm-btn" onclick="confirmEarn()" disabled><span>💬</span> ยืนยัน &amp; แจ้ง LINE</button>';
+  const pending=m.pending_baht||0;
+  let html='<div class="mfound"><div class="mf-av">'+m.full_name.charAt(0)+'</div><div style="flex:1"><div class="mfn">'+m.full_name+'</div><div class="mfp">'+m.phone+' · '+m.tier+'</div><div class="mfpts">★ '+m.points.toLocaleString()+' แต้มสะสม'+(pending>0?' · เศษ '+pending+' บาท':'')+'</div></div><button class="next-cust-btn" onclick="nextCustomer()">↻ ลูกค้าใหม่</button></div>';
+  if(justEarned){
+    // สะสมเสร็จแล้ว — แสดงผลสำเร็จ + ปุ่มลูกค้าถัดไปเด่นๆ
+    html+='<div class="earn-done"><div class="done-ic">✓</div><div class="done-txt">สะสมแต้มสำเร็จ<br><b>+'+lastTx.earned+' แต้ม</b> · แจ้ง LINE แล้ว</div></div>'+
+      '<div id="last-tx"></div>'+
+      '<button class="btn-next" onclick="nextCustomer()">รับลูกค้าคนถัดไป →</button>';
+  } else {
+    html+='<div class="sec-t">กรอกยอดเงินรวมในบิล</div>'+
+      '<div class="amount-box"><span class="amt-prefix">฿</span><input class="amt-input" id="amt-input" type="number" inputmode="numeric" placeholder="0" oninput="calcPts()"></div>'+
+      '<div class="amt-hint" id="amt-hint">'+(pending>0?'มีเศษ '+pending+' บาทจากบิลก่อน · ':'')+'ทุก 30 บาท = 1 แต้ม</div>'+
+      '<button class="btn-confirm" id="confirm-btn" onclick="confirmEarn()" disabled><span>💬</span> ยืนยัน &amp; แจ้ง LINE</button>';
+  }
   document.getElementById('earn-member').innerHTML=html;
-  setTimeout(()=>{const el=document.getElementById('amt-input'); if(el)el.focus();},100);
+  if(justEarned && lastTx) renderLastTx();
+  if(!justEarned) setTimeout(()=>{const el=document.getElementById('amt-input'); if(el)el.focus();},100);
+}
+function nextCustomer(){
+  currentMember=null; lastTx=null; justEarned=false;
+  if(editCountdown){clearInterval(editCountdown); editCountdown=null;}
+  document.getElementById('earn-member').innerHTML='';
+  setMethod(earnMethod);   // กลับไปวิธีเดิม (กดเบอร์/QR/พิมพ์) พร้อมรับคนใหม่
+  showToast('พร้อมรับลูกค้าคนถัดไป');
 }
 function calcPts(){
   const amt=parseFloat(document.getElementById('amt-input').value)||0;
-  const pts=Math.floor(amt/30);
+  const pending=currentMember.pending_baht||0;
+  const total=amt+pending;
+  const pts=Math.floor(total/30);
   const hint=document.getElementById('amt-hint');
   const btn=document.getElementById('confirm-btn');
-  if(amt>=30){ hint.innerHTML='ลูกค้าจะได้รับ <b style="color:#c87941">+'+pts+' แต้ม</b>'; btn.disabled=false; }
-  else { hint.textContent='ทุก 30 บาท = 1 แต้ม (ขั้นต่ำ 30 บาท)'; btn.disabled=true; }
+  if(amt>0){ hint.innerHTML=(pending>0?'('+amt+'+เศษ'+pending+'='+total+') → ':'')+'ลูกค้าจะได้รับ <b style="color:#c87941">+'+pts+' แต้ม</b>'+(total%30>0?' · เศษ '+(total%30)+' บาท':''); btn.disabled=false; }
+  else { hint.textContent='ทุก 30 บาท = 1 แต้ม'; btn.disabled=true; }
 }
 async function confirmEarn(){
   const amt=parseFloat(document.getElementById('amt-input').value)||0;
-  if(amt<30){ showToast('ยอดขั้นต่ำ 30 บาท'); return; }
+  if(amt<=0){ showToast('กรอกยอดเงิน'); return; }
   const btn=document.getElementById('confirm-btn'); btn.disabled=true; btn.innerHTML='<span class="spin"></span> กำลังบันทึก...';
   try{
     const res=await fetch(API_BASE+'/points/earn-amount',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({member_id:currentMember.id,amount:amt,cashier_id:String(staffInfo.id),cashier_name:staffInfo.name})});
     const data=await res.json();
-    if(data.ok){ showToast('✓ เพิ่ม '+data.earned+' แต้ม · แจ้ง LINE แล้ว'); currentMember.points=data.total_points; currentMember.tier=data.tier; showEarnMember(); }
+    if(data.ok){
+      showToast('✓ เพิ่ม '+data.earned+' แต้ม · แจ้ง LINE แล้ว');
+      currentMember.points=data.total_points; currentMember.tier=data.tier; currentMember.pending_baht=data.pending;
+      lastTx={ id:data.tx_id, amount:amt, earned:data.earned, time:Date.now() };
+      justEarned=true;
+      showEarnMember();
+    }
+    else { showToast(data.error||'ผิดพลาด'); btn.disabled=false; btn.innerHTML='<span>💬</span> ยืนยัน &amp; แจ้ง LINE'; }
+  }catch(e){ showToast('เชื่อมต่อไม่ได้'); btn.disabled=false; btn.innerHTML='<span>💬</span> ยืนยัน &amp; แจ้ง LINE'; }
+}
+function renderLastTx(){
+  const box=document.getElementById('last-tx'); if(!box||!lastTx)return;
+  const elapsed=Math.floor((Date.now()-lastTx.time)/1000);
+  const left=300-elapsed;
+  if(left<=0){ lastTx=null; box.innerHTML=''; if(editCountdown)clearInterval(editCountdown); return; }
+  const mm=Math.floor(left/60), ss=left%60;
+  box.innerHTML='<div class="lasttx-box"><div class="lasttx-info">✓ รายการล่าสุด: '+lastTx.amount+' บาท (+'+lastTx.earned+' แต้ม)<br><span style="font-size:10px;color:#8a9a8c">แก้ไขได้ภายใน '+mm+':'+(ss<10?'0':'')+ss+'</span></div><div style="display:flex;gap:6px"><button class="edit-btn" onclick="editLastTx()">แก้ไข</button><button class="del-btn" onclick="cancelLastTx()">ยกเลิก</button></div></div>';
+  if(!editCountdown){ editCountdown=setInterval(renderLastTx,1000); }
+}
+async function editLastTx(){
+  const v=prompt('กรอกยอดเงินที่ถูกต้อง (บาท):', lastTx.amount);
+  if(v===null)return;
+  const amt=parseFloat(v); if(!amt||amt<=0){ showToast('ยอดไม่ถูกต้อง'); return; }
+  try{
+    const res=await fetch(API_BASE+'/points/edit-amount',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tx_id:lastTx.id,new_amount:amt,cashier_name:staffInfo.name})});
+    const data=await res.json();
+    if(data.ok){ showToast('✓ แก้ไขเป็น '+data.earned+' แต้ม'); currentMember.points=data.total_points; currentMember.tier=data.tier; lastTx.amount=amt; lastTx.earned=data.earned; await refreshMember(); }
     else showToast(data.error||'ผิดพลาด');
   }catch(e){ showToast('เชื่อมต่อไม่ได้'); }
-  finally{ if(document.getElementById('confirm-btn')){btn.disabled=false;btn.innerHTML='<span>💬</span> ยืนยัน &amp; แจ้ง LINE';} }
+}
+async function cancelLastTx(){
+  if(!confirm('ยกเลิกรายการสะสม '+lastTx.amount+' บาท?'))return;
+  try{
+    const res=await fetch(API_BASE+'/points/cancel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tx_id:lastTx.id})});
+    const data=await res.json();
+    if(data.ok){ showToast('✓ ยกเลิกแล้ว'); currentMember.points=data.total_points; currentMember.tier=data.tier; lastTx=null; if(editCountdown)clearInterval(editCountdown); await refreshMember(); }
+    else showToast(data.error||'ผิดพลาด');
+  }catch(e){ showToast('เชื่อมต่อไม่ได้'); }
+}
+async function refreshMember(){
+  try{ const d=await(await fetch(API_BASE+'/members/search?q='+encodeURIComponent(currentMember.phone))).json();
+    if(d.results&&d.results.length){ currentMember=d.results[0]; } }catch(e){}
+  showEarnMember();
 }
 
 // ═══ REDEEM (ร้านช่วยลูกค้าแลก) ═══
