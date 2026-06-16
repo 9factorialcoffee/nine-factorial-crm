@@ -164,6 +164,10 @@ body{font-family:'Noto Sans Thai',sans-serif;background:var(--bg);min-height:100
 @keyframes spin{to{transform:rotate(360deg);}}
 
 /* ─── EARN METHODS ─── */
+.amount-box{display:flex;align-items:center;background:white;border:2px solid #d8d0bc;border-radius:12px;padding:8px 16px;margin-bottom:8px;}
+.amt-prefix{font-size:28px;font-weight:700;color:var(--copper);font-family:'Space Grotesk',sans-serif;margin-right:8px;}
+.amt-input{flex:1;border:none;outline:none;font-size:32px;font-weight:700;font-family:'Space Grotesk',sans-serif;color:var(--dark);background:transparent;width:100%;}
+.amt-hint{text-align:center;font-size:12px;color:var(--muted);margin-bottom:14px;}
 .method-tabs{display:flex;gap:8px;margin-bottom:14px;}
 .mtab{flex:1;padding:12px 8px;border-radius:10px;border:1.5px solid #d8d0bc;background:white;font-family:'Noto Sans Thai',sans-serif;font-size:12px;font-weight:600;cursor:pointer;color:var(--muted);text-align:center;transition:all .2s;}
 .mtab.on{background:var(--dark);color:var(--copper);border-color:var(--dark);}
@@ -289,6 +293,7 @@ const MENU = {
     {id:'dash',   label:'📊 ภาพรวม'},
     {id:'members',label:'👥 สมาชิก'},
     {id:'history',label:'📜 ประวัติ'},
+    {id:'export', label:'📥 Export'},
     {id:'settings',label:'⚙️ ตั้งค่า'},
     {id:'bcast',  label:'📢 Broadcast'},
   ],
@@ -342,6 +347,7 @@ function render(id){
   else if(id==='members')  renderMembers(b);
   else if(id==='history')  renderHistory(b);
   else if(id==='settings') renderSettings(b);
+  else if(id==='export')   renderExport(b);
   else if(id==='bcast')    renderBcast(b);
 }
 
@@ -415,35 +421,29 @@ function iconFor(n){ return {'Signature Latte':'☕','Cold Brew Original':'🧊'
 function showEarnMember(){
   const m=currentMember;
   let html='<div class="mfound"><div class="mf-av">'+m.full_name.charAt(0)+'</div><div><div class="mfn">'+m.full_name+'</div><div class="mfp">'+m.phone+' · '+m.tier+'</div><div class="mfpts">★ '+m.points.toLocaleString()+' แต้มสะสม</div></div></div>';
-  html+='<div class="sec-t">รายการสั่งซื้อ</div><div id="order-items"></div><div id="earn-summary"></div>';
+  html+='<div class="sec-t">กรอกยอดเงินรวมในบิล</div>'+
+    '<div class="amount-box"><span class="amt-prefix">฿</span><input class="amt-input" id="amt-input" type="number" inputmode="numeric" placeholder="0" oninput="calcPts()"></div>'+
+    '<div class="amt-hint" id="amt-hint">ทุก 30 บาท = 1 แต้ม</div>'+
+    '<button class="btn-confirm" id="confirm-btn" onclick="confirmEarn()" disabled><span>💬</span> ยืนยัน &amp; แจ้ง LINE</button>';
   document.getElementById('earn-member').innerHTML=html;
-  renderOrderItems();
+  setTimeout(()=>{const el=document.getElementById('amt-input'); if(el)el.focus();},100);
 }
-function renderOrderItems(){
-  document.getElementById('order-items').innerHTML=rules.map(r=>{
-    const qty=orderQtys[r.item_name]||0;
-    return '<div class="oitem"><div class="oicon">'+iconFor(r.item_name)+'</div><div class="oinf"><div class="oname">'+r.item_name+'</div><div class="oprice">'+r.price_thb+' บาท · +'+r.points+' แต้ม</div></div><div class="qty-r"><button class="qb" onclick="addQty(\''+r.item_name+'\',-1)">−</button><span class="qn" id="q-'+r.item_name.replace(/ /g,'_')+'">'+qty+'</span><button class="qb" onclick="addQty(\''+r.item_name+'\',1)">+</button></div></div>';
-  }).join('');
-  updateSummary();
-}
-function addQty(name,d){ orderQtys[name]=Math.max(0,(orderQtys[name]||0)+d); const el=document.getElementById('q-'+name.replace(/ /g,'_')); if(el)el.textContent=orderQtys[name]; updateSummary(); }
-function updateSummary(){
-  let pts=0,amt=0; const lines=[];
-  rules.forEach(r=>{const q=orderQtys[r.item_name]||0; if(q>0){pts+=r.points*q;amt+=r.price_thb*q;lines.push([r.item_name+' ×'+q, r.price_thb*q]);}});
-  const box=document.getElementById('earn-summary');
-  if(!lines.length||!currentMember){ box.innerHTML=''; return; }
-  box.innerHTML='<div class="sum-box">'+lines.map(l=>'<div class="sum-r"><span>'+l[0]+'</span><span>'+l[1]+' บาท</span></div>').join('')+
-    '<div class="sum-r tot"><span>ยอดรวม</span><span>'+amt+' บาท · <span class="sum-pts">+'+pts+' แต้ม</span></span></div></div>'+
-    '<button class="btn-confirm" id="confirm-btn" onclick="confirmEarn()"><span>💬</span> ยืนยัน &amp; แจ้ง LINE</button>';
+function calcPts(){
+  const amt=parseFloat(document.getElementById('amt-input').value)||0;
+  const pts=Math.floor(amt/30);
+  const hint=document.getElementById('amt-hint');
+  const btn=document.getElementById('confirm-btn');
+  if(amt>=30){ hint.innerHTML='ลูกค้าจะได้รับ <b style="color:#c87941">+'+pts+' แต้ม</b>'; btn.disabled=false; }
+  else { hint.textContent='ทุก 30 บาท = 1 แต้ม (ขั้นต่ำ 30 บาท)'; btn.disabled=true; }
 }
 async function confirmEarn(){
-  const items=rules.filter(r=>(orderQtys[r.item_name]||0)>0).map(r=>({item_name:r.item_name,qty:orderQtys[r.item_name]}));
-  if(!items.length)return;
+  const amt=parseFloat(document.getElementById('amt-input').value)||0;
+  if(amt<30){ showToast('ยอดขั้นต่ำ 30 บาท'); return; }
   const btn=document.getElementById('confirm-btn'); btn.disabled=true; btn.innerHTML='<span class="spin"></span> กำลังบันทึก...';
   try{
-    const res=await fetch(API_BASE+'/points/earn',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({member_id:currentMember.id,items,cashier_id:String(staffInfo.id)})});
+    const res=await fetch(API_BASE+'/points/earn-amount',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({member_id:currentMember.id,amount:amt,cashier_id:String(staffInfo.id),cashier_name:staffInfo.name})});
     const data=await res.json();
-    if(data.ok){ showToast('✓ เพิ่ม '+data.earned+' แต้ม · แจ้ง LINE แล้ว'); currentMember.points=data.total_points; currentMember.tier=data.tier; orderQtys={}; showEarnMember(); }
+    if(data.ok){ showToast('✓ เพิ่ม '+data.earned+' แต้ม · แจ้ง LINE แล้ว'); currentMember.points=data.total_points; currentMember.tier=data.tier; showEarnMember(); }
     else showToast(data.error||'ผิดพลาด');
   }catch(e){ showToast('เชื่อมต่อไม่ได้'); }
   finally{ if(document.getElementById('confirm-btn')){btn.disabled=false;btn.innerHTML='<span>💬</span> ยืนยัน &amp; แจ้ง LINE';} }
@@ -641,6 +641,39 @@ async function saveStaff(){
 async function delStaff(id,name){
   if(!confirm('ลบ "'+name+'"?'))return;
   try{ if((await(await fetch(API_BASE+'/staff/'+id,{method:'DELETE'})).json()).ok){showToast('✓ ลบแล้ว');loadSetStaff();} }catch(e){}
+}
+
+// ═══ EXPORT ═══
+function renderExport(b){
+  const today=new Date().toISOString().substring(0,10);
+  const monthAgo=new Date(Date.now()-30*864e5).toISOString().substring(0,10);
+  b.innerHTML=
+    '<div class="card"><div class="card-t">ดาวน์โหลดข้อมูล (Excel/CSV)</div>'+
+      '<div style="font-size:12px;color:#8a9a8c;margin-bottom:14px">ไฟล์ CSV เปิดใน Excel หรือ Google Sheets ได้</div>'+
+      '<button class="add-btn" style="border-style:solid;margin-top:0;margin-bottom:8px" onclick="dlExport(\'members\')">📋 รายชื่อสมาชิกทั้งหมด</button>'+
+      '<button class="add-btn" style="border-style:solid;margin-bottom:8px" onclick="dlExport(\'phones\')">📞 เบอร์โทรลูกค้า (การตลาด)</button>'+
+      '<div class="date-row" style="margin-top:6px"><input class="date-inp" type="date" id="ex-from" value="'+monthAgo+'"><span style="color:#8a9a8c">ถึง</span><input class="date-inp" type="date" id="ex-to" value="'+today+'"></div>'+
+      '<button class="add-btn" style="border-style:solid" onclick="dlSales()">💰 ประวัติการขาย (ตามช่วงวัน)</button>'+
+    '</div>'+
+    '<div class="card"><div class="card-t">ตรวจสอบยอดสูงผิดปกติ <span>≥ 300 บาท</span></div>'+
+      '<div id="audit-list"><div class="loading-row">กำลังโหลด...</div></div>'+
+    '</div>';
+  loadAudit();
+}
+function dlExport(type){ window.open(API_BASE+'/export/'+type,'_blank'); showToast('✓ กำลังดาวน์โหลด...'); }
+function dlSales(){
+  const from=document.getElementById('ex-from').value, to=document.getElementById('ex-to').value;
+  window.open(API_BASE+'/export/sales?from='+from+'&to='+to,'_blank'); showToast('✓ กำลังดาวน์โหลด...');
+}
+async function loadAudit(){
+  try{
+    const d=await(await fetch(API_BASE+'/audit?min=300')).json();
+    const list=document.getElementById('audit-list');
+    if(!d.transactions||!d.transactions.length){ list.innerHTML='<div class="loading-row">ไม่มียอดสูงผิดปกติ</div>'; return; }
+    list.innerHTML=d.transactions.map(t=>
+      '<div class="hist-item"><div class="hist-ic e">💰</div><div style="flex:1"><div class="hist-name">'+t.full_name+' · ฿'+(t.amount_thb||0).toLocaleString()+'</div><div class="hist-note">'+(t.note||'')+'</div></div><div><div class="hist-pts e">+'+t.points+'</div><div class="hist-date">'+t.created_at.substring(5,16)+'</div></div></div>'
+    ).join('');
+  }catch(e){ document.getElementById('audit-list').innerHTML='<div class="loading-row">โหลดไม่ได้</div>'; }
 }
 
 // ═══ BROADCAST ═══
