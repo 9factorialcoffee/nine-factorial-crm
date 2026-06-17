@@ -137,6 +137,8 @@ body{font-family:'Noto Sans Thai',sans-serif;background:var(--bg);min-height:100
 .del-btn{padding:4px 8px;border-radius:6px;border:1px solid #f44336;background:transparent;color:#f44336;font-size:11px;cursor:pointer;}
 .add-btn{width:100%;padding:11px;border-radius:8px;border:1.5px dashed var(--copper);background:transparent;color:var(--copper);font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans Thai',sans-serif;margin-top:10px;}
 .tier-row{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:8px;margin-bottom:6px;font-size:12px;font-weight:600;}
+.tier-edit-row{display:flex;align-items:center;justify-content:space-between;padding:8px 4px;font-size:13px;font-weight:600;border-bottom:1px solid rgba(0,0,0,.05);}
+.tier-inp{width:100px;padding:8px 10px;border:1.5px solid #d8d0bc;border-radius:8px;font-family:'Space Grotesk',sans-serif;font-size:14px;text-align:right;outline:none;}
 
 /* ─── BROADCAST ─── */
 .seg-opts{display:flex;flex-wrap:wrap;gap:6px;}
@@ -624,21 +626,33 @@ async function loadHistory(){
 // ═══ SETTINGS ═══
 async function renderSettings(b){
   b.innerHTML=
-    '<div class="card"><div class="card-t">กฎสะสมแต้ม</div><div id="set-rules"><div class="loading-row">กำลังโหลด...</div></div><button class="add-btn" onclick="openRule()">+ เพิ่มเมนู</button></div>'+
     '<div class="card"><div class="card-t">ของรางวัล</div><div id="set-rewards"><div class="loading-row">กำลังโหลด...</div></div><button class="add-btn" onclick="openReward()">+ เพิ่มของรางวัล</button></div>'+
-    '<div class="card"><div class="card-t">Tier สมาชิก</div>'+
-      '<div class="tier-row" style="background:#f5f0e8;color:#6d4c41">🥉 Bronze <span style="color:#9a8070">0 – 500</span></div>'+
-      '<div class="tier-row" style="background:#f0f4f8;color:#1565c0">🥈 Silver <span style="color:#90a4ae">501 – 1,500</span></div>'+
-      '<div class="tier-row" style="background:#fffde7;color:#f57f17">🥇 Gold <span style="color:#ffd54f">1,501 – 3,000</span></div>'+
-      '<div class="tier-row" style="background:#1e2820;color:#c87941">💎 Platinum <span style="color:rgba(200,121,65,.5)">3,001+</span></div>'+
-    '</div>'+
+    '<div class="card"><div class="card-t">ระดับสมาชิก <span>แก้คะแนนขั้นต่ำได้</span></div><div id="set-tiers"><div class="loading-row">กำลังโหลด...</div></div></div>'+
     '<div class="card"><div class="card-t">จัดการพนักงาน / PIN</div><div id="set-staff"><div class="loading-row">กำลังโหลด...</div></div><button class="add-btn" onclick="openStaff()">+ เพิ่มพนักงาน</button></div>';
-  loadSetRules(); loadSetRewards(); loadSetStaff();
+  loadSetRewards(); loadSetStaff(); loadSetTiers();
 }
-async function loadSetRules(){
-  try{ const d=await(await fetch(API_BASE+'/rules')).json();
-    document.getElementById('set-rules').innerHTML=(d.rules||[]).map(r=>'<div class="sitem"><div class="sico">'+iconFor(r.item_name)+'</div><div class="sinf"><div class="sinn">'+r.item_name+'</div><div class="sinp">'+r.price_thb+' บาท</div></div><div style="display:flex;align-items:center;gap:6px"><div class="sval">'+r.points+' pts</div><button class="edit-btn" onclick="openRule('+r.id+',\''+r.item_name.replace(/'/g,"")+'\','+r.price_thb+','+r.points+')">แก้</button></div></div>').join('');
-  }catch(e){}
+async function loadSetTiers(){
+  try{
+    const d=await(await fetch(API_BASE+'/tiers')).json();
+    const t=d.tiers||{silver:501,gold:1501,platinum:3001};
+    document.getElementById('set-tiers').innerHTML=
+      '<div class="tier-row" style="background:#f5f0e8;color:#6d4c41">🥉 Bronze <span style="color:#9a8070">0 – '+(t.silver-1)+'</span></div>'+
+      '<div class="tier-edit-row"><span style="color:#1565c0">🥈 Silver เริ่มที่</span><input class="tier-inp" id="t-silver" type="number" value="'+t.silver+'"></div>'+
+      '<div class="tier-edit-row"><span style="color:#f57f17">🥇 Gold เริ่มที่</span><input class="tier-inp" id="t-gold" type="number" value="'+t.gold+'"></div>'+
+      '<div class="tier-edit-row"><span style="color:#c87941">💎 Platinum เริ่มที่</span><input class="tier-inp" id="t-platinum" type="number" value="'+t.platinum+'"></div>'+
+      '<button class="modal-save" style="margin-top:10px" onclick="saveTiers()">บันทึกเกณฑ์คะแนน</button>';
+  }catch(e){ document.getElementById('set-tiers').innerHTML='<div class="loading-row">โหลดไม่ได้</div>'; }
+}
+async function saveTiers(){
+  const silver=parseInt(document.getElementById('t-silver').value);
+  const gold=parseInt(document.getElementById('t-gold').value);
+  const platinum=parseInt(document.getElementById('t-platinum').value);
+  if(!silver||!gold||!platinum){showToast('กรอกให้ครบ');return;}
+  if(!(silver<gold&&gold<platinum)){showToast('ต้องเรียง Silver < Gold < Platinum');return;}
+  try{
+    const res=await fetch(API_BASE+'/tiers',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({silver,gold,platinum})});
+    if((await res.json()).ok){showToast('✓ บันทึกเกณฑ์แล้ว');loadSetTiers();}
+  }catch(e){showToast('เชื่อมต่อไม่ได้');}
 }
 async function loadSetRewards(){
   try{ const d=await(await fetch(API_BASE+'/rewards')).json();
